@@ -123,6 +123,18 @@ public class StudentLinkedList {
         }
     }
 
+    /**
+     * Visit each student from the head to the end of the list.
+     * The window uses this to fill the student table.
+     */
+    public void forEach(java.util.function.Consumer<Student> action) {
+        Node current = head;
+        while (current != null) {
+            action.accept(current.data);
+            current = current.next;
+        }
+    }
+
     public int getSize() { return size; }
     public boolean isEmpty() { return size == 0; }
 }
