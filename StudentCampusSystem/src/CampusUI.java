@@ -4,7 +4,10 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridLayout;
+import java.awt.RenderingHints;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -23,8 +26,10 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -34,15 +39,16 @@ import javax.swing.table.DefaultTableModel;
  */
 public class CampusUI extends JFrame {
 
-    private static final Color HEADER = new Color(27, 58, 75);
-    private static final Color PAGE = new Color(244, 246, 248);
-    private static final Color INK = new Color(33, 37, 41);
+    private static final Color NAVY = new Color(30, 58, 95);
+    private static final Color PAGE = new Color(245, 247, 250);
+    private static final Color INK = new Color(30, 41, 59);
+    private static final Color CARD = Color.WHITE;
 
     private final StudentLinkedList studentList = new StudentLinkedList();
     private final StudentBST studentTree = new StudentBST();
     private final StudentHashTable studentHash = new StudentHashTable();
     private final ActionStack actionHistory = new ActionStack();
-    private final ServiceQueue serviceQueue = new ServiceQueue();
+    private final ServiceQueue<String> serviceQueue = new ServiceQueue<>();
     private final CampusGraph campus = new CampusGraph();
 
     private final JTextField idField = new JTextField(16);
@@ -91,9 +97,9 @@ public class CampusUI extends JFrame {
 
     public static void main(String[] args) {
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
         } catch (Exception ignored) {
-            // The system look is optional. The window still opens with the default look.
+            // The window still opens if the look cannot be changed.
         }
         SwingUtilities.invokeLater(() -> new CampusUI().setVisible(true));
     }
@@ -101,26 +107,32 @@ public class CampusUI extends JFrame {
     private JPanel header() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(HEADER);
+        panel.setBackground(NAVY);
         panel.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
 
         JLabel title = new JLabel("Student Record and Campus Route System");
         title.setForeground(Color.WHITE);
         title.setFont(new Font("Segoe UI", Font.BOLD, 22));
 
-        JLabel subtitle = new JLabel("Linked list, stack, queue, BST, hashing, and campus graph");
-        subtitle.setForeground(new Color(198, 216, 224));
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JPanel chips = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        chips.setOpaque(false);
+        chips.add(chip("Linked list", NAVY));
+        chips.add(chip("Stack", NAVY));
+        chips.add(chip("Queue", NAVY));
+        chips.add(chip("BST", NAVY));
+        chips.add(chip("Hashing", NAVY));
+        chips.add(chip("Graph", NAVY));
 
         panel.add(title);
-        panel.add(Box.createVerticalStrut(4));
-        panel.add(subtitle);
+        panel.add(Box.createVerticalStrut(10));
+        panel.add(chips);
         return panel;
     }
 
     private JTabbedPane tabs() {
         JTabbedPane tabs = new JTabbedPane();
-        tabs.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        tabs.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        tabs.setBackground(PAGE);
         tabs.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         tabs.addTab("Students", studentsTab());
         tabs.addTab("Service Queue", queueTab());
@@ -131,89 +143,108 @@ public class CampusUI extends JFrame {
     }
 
     private JPanel studentsTab() {
+        styleField(idField);
+        styleField(nameField);
+        styleField(programmeField);
+        styleField(marksField);
+
         JPanel form = column(
                 label("Student ID"), idField,
                 label("Name"), nameField,
                 label("Programme"), programmeField,
                 label("Marks (0 to 100)"), marksField,
-                Box.createVerticalStrut(8),
-                button("Add student", this::addStudent),
-                button("Search by ID", this::searchStudent),
-                button("Update student", this::updateStudent),
-                button("Delete student", this::deleteStudent),
-                button("Clear form", this::clearStudentForm)
+                Box.createVerticalStrut(6),
+                button("Add student", NAVY, this::addStudent),
+                button("Search", NAVY, this::searchStudent),
+                button("Update", NAVY, this::updateStudent),
+                button("Delete", NAVY, this::deleteStudent),
+                button("Clear", INK, this::clearStudentForm)
         );
 
         JTable table = new JTable(studentModel);
-        table.setRowHeight(24);
+        table.setRowHeight(28);
         table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        table.setSelectionBackground(new Color(226, 232, 240));
+        table.setSelectionForeground(INK);
+        table.setGridColor(new Color(226, 232, 240));
+        table.setShowGrid(true);
+        table.getTableHeader().setDefaultRenderer(headerRenderer());
+        table.getTableHeader().setPreferredSize(new Dimension(0, 32));
         table.getSelectionModel().addListSelectionListener(event -> {
             if (!event.getValueIsAdjusting()) {
                 fillFormFromTable(table);
             }
         });
 
-        JPanel records = new JPanel(new GridLayout(2, 1, 0, 8));
+        JPanel records = new JPanel(new GridLayout(2, 1, 0, 12));
         records.setOpaque(false);
-        records.add(titled("All records (linked list)", new JScrollPane(table)));
-        records.add(titled("Students sorted by ID (BST)", new JScrollPane(bstArea)));
+        records.add(titled("Linked list", NAVY, new JScrollPane(table)));
+        records.add(titled("Binary search tree", NAVY, new JScrollPane(bstArea)));
 
-        JPanel page = new JPanel(new BorderLayout(12, 0));
+        JPanel page = new JPanel(new BorderLayout(16, 0));
         page.setBackground(PAGE);
-        page.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-        page.add(side(form), BorderLayout.WEST);
+        page.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        page.add(side(card(form)), BorderLayout.WEST);
         page.add(records, BorderLayout.CENTER);
         return page;
     }
 
     private JPanel queueTab() {
         queueCountLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        queueCountLabel.setForeground(NAVY);
+        styleField(requestIdField);
+        styleField(requestTypeField);
+
         JPanel form = column(
                 label("Student ID"), requestIdField,
                 label("Request type"), requestTypeField,
-                Box.createVerticalStrut(8),
-                button("Add request", this::addRequest),
-                button("Process next request", this::processRequest),
+                Box.createVerticalStrut(6),
+                button("Add request", NAVY, this::addRequest),
+                button("Process next", NAVY, this::processRequest),
                 queueCountLabel
         );
 
-        JPanel page = new JPanel(new BorderLayout(12, 0));
+        JPanel page = new JPanel(new BorderLayout(16, 0));
         page.setBackground(PAGE);
-        page.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-        page.add(side(form), BorderLayout.WEST);
-        page.add(titled("Waiting requests (first come, first served)", new JScrollPane(queueArea)), BorderLayout.CENTER);
+        page.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        page.add(side(card(form)), BorderLayout.WEST);
+        page.add(titled("Service queue", NAVY, new JScrollPane(queueArea)), BorderLayout.CENTER);
         return page;
     }
 
     private JPanel actionsTab() {
         JPanel page = new JPanel(new BorderLayout());
         page.setBackground(PAGE);
-        page.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-        page.add(titled("Newest action first (stack)", new JScrollPane(actionArea)), BorderLayout.CENTER);
+        page.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        page.add(titled("Recent actions", NAVY, new JScrollPane(actionArea)), BorderLayout.CENTER);
         return page;
     }
 
     private JPanel campusTab() {
-        JPanel locations = section("Locations",
-                label("Location name"), locationField,
-                button("Add location", this::addLocation),
-                button("Remove location", this::removeLocation));
+        styleField(locationField);
+        styleField(fromField);
+        styleField(toField);
+        styleField(startField);
 
-        JPanel roads = section("Roads",
+        JPanel locations = section("Locations", NAVY,
+                label("Location name"), locationField,
+                button("Add location", NAVY, this::addLocation),
+                button("Remove location", NAVY, this::removeLocation));
+
+        JPanel roads = section("Roads", NAVY,
                 label("First location"), fromField,
                 label("Second location"), toField,
-                button("Add road", this::addRoad),
-                button("Remove road", this::removeRoad));
+                button("Add road", NAVY, this::addRoad),
+                button("Remove road", NAVY, this::removeRoad));
 
         JPanel travelButtons = new JPanel(new GridLayout(1, 2, 8, 0));
         travelButtons.setOpaque(false);
         travelButtons.setAlignmentX(Component.LEFT_ALIGNMENT);
-        travelButtons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
-        travelButtons.add(button("Run BFS", this::runBfs));
-        travelButtons.add(button("Run DFS", this::runDfs));
+        travelButtons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        travelButtons.add(button("BFS", NAVY, this::runBfs));
+        travelButtons.add(button("DFS", NAVY, this::runDfs));
 
-        JPanel travel = section("Traversal",
+        JPanel travel = section("Walk", NAVY,
                 label("Start location"), startField, travelButtons);
 
         JPanel controls = new JPanel();
@@ -227,12 +258,12 @@ public class CampusUI extends JFrame {
 
         JPanel results = new JPanel(new GridLayout(2, 1, 0, 8));
         results.setOpaque(false);
-        results.add(titled("Campus connections", new JScrollPane(networkArea)));
-        results.add(titled("Traversal result", new JScrollPane(traversalArea)));
+        results.add(titled("Campus network", NAVY, new JScrollPane(networkArea)));
+        results.add(titled("Walk order", NAVY, new JScrollPane(traversalArea)));
 
-        JPanel page = new JPanel(new BorderLayout(12, 0));
+        JPanel page = new JPanel(new BorderLayout(16, 0));
         page.setBackground(PAGE);
-        page.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        page.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
         page.add(side(controls), BorderLayout.WEST);
         page.add(results, BorderLayout.CENTER);
         return page;
@@ -240,10 +271,10 @@ public class CampusUI extends JFrame {
 
     private JPanel statusBar() {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 8));
-        bar.setBackground(Color.WHITE);
+        bar.setBackground(NAVY);
+        statusLabel.setForeground(Color.WHITE);
         bar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(220, 224, 228)));
         statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        statusLabel.setForeground(INK);
         bar.add(statusLabel);
         return bar;
     }
@@ -365,11 +396,11 @@ public class CampusUI extends JFrame {
     }
 
     private void processRequest() {
-        String request = serviceQueue.dequeue();
-        if (request == null) {
+        if (serviceQueue.isEmpty()) {
             warn("No pending service requests.");
             return;
         }
+        String request = serviceQueue.dequeue();
         actionHistory.push("Processed request: " + request);
         refreshAll();
         status("Processed: " + request);
@@ -559,7 +590,8 @@ public class CampusUI extends JFrame {
 
     private static JLabel label(String text) {
         JLabel label = new JLabel(text);
-        label.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        label.setForeground(INK);
         return label;
     }
 
@@ -576,14 +608,49 @@ public class CampusUI extends JFrame {
         return panel;
     }
 
-    private static JPanel section(String title, Component... parts) {
-        JPanel panel = column(parts);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder(title),
-                BorderFactory.createEmptyBorder(4, 8, 8, 8)));
+    private static JPanel section(String title, Color accent, Component... parts) {
+        JPanel body = column(parts);
+        JPanel panel = titled(title, accent, body);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, panel.getPreferredSize().height + 24));
+        int height = panel.getPreferredSize().height + 8;
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
         return panel;
+    }
+
+    private static JPanel card(JPanel content) {
+        content.setBackground(CARD);
+        content.setOpaque(true);
+        content.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(226, 232, 240)),
+                BorderFactory.createEmptyBorder(14, 14, 14, 14)));
+        return content;
+    }
+
+    private static JLabel chip(String text, Color color) {
+        JLabel chip = new JLabel(text);
+        chip.setOpaque(true);
+        chip.setBackground(Color.WHITE);
+        chip.setForeground(NAVY);
+        chip.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        chip.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+        return chip;
+    }
+
+    private static void styleField(JTextField field) {
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        field.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(203, 213, 225)),
+                BorderFactory.createEmptyBorder(7, 8, 7, 8)));
+    }
+
+    private static DefaultTableCellRenderer headerRenderer() {
+        DefaultTableCellRenderer renderer = new DefaultTableCellRenderer();
+        renderer.setBackground(NAVY);
+        renderer.setForeground(Color.WHITE);
+        renderer.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        renderer.setHorizontalAlignment(SwingConstants.LEFT);
+        renderer.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+        return renderer;
     }
 
     private static JScrollPane side(JPanel content) {
@@ -591,8 +658,8 @@ public class CampusUI extends JFrame {
         holder.setOpaque(false);
         holder.add(content, BorderLayout.NORTH);
         JScrollPane scroll = new JScrollPane(holder);
-        scroll.setPreferredSize(new Dimension(320, 400));
-        scroll.setMinimumSize(new Dimension(280, 200));
+        scroll.setPreferredSize(new Dimension(360, 400));
+        scroll.setMinimumSize(new Dimension(320, 200));
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
@@ -609,10 +676,26 @@ public class CampusUI extends JFrame {
         part.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
     }
 
-    private static JButton button(String text, Runnable action) {
-        JButton button = new JButton(text);
-        button.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        button.setMargin(new java.awt.Insets(6, 10, 6, 10));
+    private static JButton button(String text, Color color, Runnable action) {
+        JButton button = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                Color fill = getModel().isPressed() ? color.darker() : color;
+                g.setColor(fill);
+                g.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g.dispose();
+                super.paintComponent(graphics);
+            }
+        };
+        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        button.setForeground(Color.WHITE);
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setOpaque(false);
+        button.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         button.addActionListener(event -> action.run());
         return button;
     }
@@ -620,16 +703,26 @@ public class CampusUI extends JFrame {
     private static JTextArea area() {
         JTextArea area = new JTextArea();
         area.setEditable(false);
-        area.setFont(new Font("Consolas", Font.PLAIN, 13));
-        area.setMargin(new java.awt.Insets(8, 8, 8, 8));
+        area.setBackground(CARD);
+        area.setForeground(INK);
+        area.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        area.setMargin(new java.awt.Insets(10, 12, 10, 12));
         return area;
     }
 
-    private static JPanel titled(String title, JScrollPane pane) {
+    private static JPanel titled(String title, Color accent, java.awt.Container body) {
+        JLabel heading = new JLabel(title);
+        heading.setOpaque(true);
+        heading.setBackground(accent);
+        heading.setForeground(Color.WHITE);
+        heading.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        heading.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setOpaque(false);
-        panel.setBorder(BorderFactory.createTitledBorder(title));
-        panel.add(pane, BorderLayout.CENTER);
+        panel.setBackground(CARD);
+        panel.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        panel.add(heading, BorderLayout.NORTH);
+        panel.add(body, BorderLayout.CENTER);
         return panel;
     }
 }

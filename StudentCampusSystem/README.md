@@ -8,10 +8,10 @@ A Java console application that manages student records and a campus map.
 
 | Name | Student ID | Responsibility | Individual Contribution |
 |------|-----------|----------------|-------------------------|
-| (Member 1 name) | (ID) | Linked list and student records | (write what you did) |
-| (Member 2 name) | (ID) | Stack and queue | (write what you did) |
-| (Member 3 name) | (ID) | BST and hashing | (write what you did) |
-| (Member 4 name) | (ID) | Graph, locations, BFS/DFS | (write what you did) |
+| MJF.Hana | 23DA2-1134 | Linked list and student records | Implemented the singly linked list in StudentLinkedList.java to add, find, remove, and display student records, and blocked duplicate student IDs. |
+| MMF.Mahdhiyya | 23da2-1153 | Stack and queue | Implemented ActionStack.java for recent actions and ServiceQueue.java so service requests are handled in arrival order. |
+| ANF.Ifatha | 23DA2-1140 | BST and hashing | Implemented StudentBST.java to organise students by ID and StudentHashTable.java for fast student ID search using chaining. |
+| MAF.Farhath | 23DA2-0710 | Graph, locations, BFS/DFS | Implemented CampusGraph.java with an adjacency list, add and remove operations for locations and roads, network display, and BFS and DFS traversal. |
 
 All members worked together on: menu, validation, testing, debugging, documentation.
 

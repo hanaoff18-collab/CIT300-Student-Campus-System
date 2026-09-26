@@ -14,7 +14,7 @@ public class Main {
     private static StudentBST studentTree = new StudentBST();
     private static StudentHashTable studentHash = new StudentHashTable();
     private static ActionStack actionHistory = new ActionStack();
-    private static ServiceQueue serviceQueue = new ServiceQueue();
+    private static ServiceQueue<String> serviceQueue = new ServiceQueue<>();
     private static CampusGraph campus = new CampusGraph();
 
     public static void main(String[] args) {
@@ -202,11 +202,11 @@ public class Main {
     }
 
     private static void processNextRequest() {
-        String request = serviceQueue.dequeue();
-        if (request == null) {
+        if (serviceQueue.isEmpty()) {
             System.out.println("No pending service requests.");
             return;
         }
+        String request = serviceQueue.dequeue();
         System.out.println("Processing request: " + request);
         actionHistory.push("Processed request: " + request);
         System.out.println("Requests still waiting: " + serviceQueue.getSize());

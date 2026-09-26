@@ -109,7 +109,7 @@ public class CampusGraph {
             return;
         }
         ArrayList<String> visited = new ArrayList<>();
-        ServiceQueue queue = new ServiceQueue();   // reuse our own queue
+        ServiceQueue<String> queue = new ServiceQueue<>();   // reuse our own queue
         visited.add(startName);
         queue.enqueue(startName);
 
